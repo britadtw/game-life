@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+}
+
+enum RewardType {
+  POINT_THRESHOLD
+  GOAL_COMPLETE
+}
+
+model Person {
+  id        String   @id @default(cuid())
+  name      String
+  goals     Goal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Goal {
+  id            String           @id @default(cuid())
+  title         String
+  assigneeId    String
+  assignee      Person           @relation(fields: [assigneeId], references: [id])
+  startAt       DateTime
+  endAt         DateTime
+  weeklyStartAt DateTime
+  completedAt   DateTime?
+  tasks         Task[]
+  rewards       Reward[]
+  completions   TaskCompletion[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([assigneeId])
+  @@index([startAt])
+  @@index([endAt])
+}
+
+model Task {
+  id        String     @id @default(cuid())
+  goalId    String
+  goal      Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title     String
+  type      TaskType
+  points    Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  completions TaskCompletion[]
+
+  @@index([goalId, type])
+}
+
+model TaskCompletion {
+  id          String   @id @default(cuid())
+  goalId      String
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  pointsAwarded Int    @default(0)
+  completedAt DateTime @default(now())
+
+  @@unique([taskId, periodStart])
+  @@index([goalId, periodStart])
+}
+
+model Reward {
+  id              String     @id @default(cuid())
+  goalId          String
+  goal            Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  type            RewardType
+  title           String
+  thresholdPoints Int?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([goalId, type])
+}
