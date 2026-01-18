@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { dayStartUtc, weeklyPeriodStartUtc } from "@/lib/period";
 import { RewardType, TaskType } from "@prisma/client";
-import GoalCard from "@/app/components/GoalCard";
+import GoalCard, { GoalSummary } from "@/app/components/GoalCard";
+import { PointReward, GoalReward } from "@/app/components/RewardProgressBar";
 
 export const dynamic = "force-dynamic";
 
@@ -14,24 +15,16 @@ type Task = {
   done: boolean;
 };
 
-type GoalSummary = {
-  id: string;
-  title: string;
-  assigneeName: string;
-  totalPoints: number;
-  daily: { done: number; total: number };
-  weekly: { done: number; total: number };
-  tasks: Task[];
-  rewards: Array<{ id: string; label: string; achieved: boolean }>;
-};
-
 async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
   const goal = await prisma.goal.findUnique({
     where: { id: goalId },
     include: {
       assignee: true,
       tasks: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
-      rewards: { orderBy: { createdAt: "asc" } },
+      rewards: { 
+        orderBy: { createdAt: "asc" },
+        include: { claims: true }
+      },
     },
   });
 
@@ -70,18 +63,25 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
   const dailyDoneCount = dailyTasks.filter((t) => doneToday.has(t.id)).length;
   const weeklyDoneCount = weeklyTasks.filter((t) => doneWeek.has(t.id)).length;
 
-  const rewards = goal.rewards.map((r) => {
-    if (r.type === RewardType.GOAL_COMPLETE) {
-      return { id: r.id, label: r.title, achieved: goal.completedAt !== null };
-    }
-
-    const threshold = r.thresholdPoints ?? 0;
-    return {
+  // Separate rewards by type
+  const pointRewards: PointReward[] = goal.rewards
+    .filter((r) => r.type === RewardType.POINT_THRESHOLD)
+    .map((r) => ({
       id: r.id,
-      label: `${r.title} (>= ${threshold} pts)`,
-      achieved: totalPoints >= threshold,
-    };
-  });
+      title: r.title,
+      thresholdPoints: r.thresholdPoints ?? 0,
+      achieved: totalPoints >= (r.thresholdPoints ?? 0),
+      claimed: r.claims.length > 0,
+    }));
+
+  const goalRewards: GoalReward[] = goal.rewards
+    .filter((r) => r.type === RewardType.GOAL_COMPLETE)
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      achieved: goal.completedAt !== null,
+      claimed: r.claims.length > 0,
+    }));
 
   const tasks: Task[] = goal.tasks.map((t) => {
     const done = t.type === TaskType.DAILY ? doneToday.has(t.id) : doneWeek.has(t.id);
@@ -98,11 +98,14 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
     id: goal.id,
     title: goal.title,
     assigneeName: goal.assignee.name,
+    startAt: goal.startAt,
+    endAt: goal.endAt,
     totalPoints,
     daily: { done: dailyDoneCount, total: dailyTasks.length },
     weekly: { done: weeklyDoneCount, total: weeklyTasks.length },
     tasks,
-    rewards,
+    pointRewards,
+    goalRewards,
   };
 }
 

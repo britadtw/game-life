@@ -186,3 +186,59 @@ export async function completeGoal(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/");
 }
+
+export async function backfillTaskCompletion(formData: FormData) {
+  const taskId = parseString(formData.get("taskId"), "taskId");
+  const dateStr = parseString(formData.get("date"), "date");
+  const action = formData.get("action")?.toString() ?? "complete";
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { goal: true },
+  });
+
+  if (!task) {
+    throw new Error("Task not found");
+  }
+
+  // Parse the date and compute the period start
+  const targetDate = new Date(dateStr);
+  if (Number.isNaN(targetDate.getTime())) {
+    throw new Error("Invalid date");
+  }
+
+  const periodStart =
+    task.type === TaskType.DAILY
+      ? dayStartUtc(targetDate)
+      : weeklyPeriodStartUtc({ now: targetDate, weeklyStartAt: task.goal.weeklyStartAt });
+
+  if (action === "uncomplete") {
+    // Delete the completion record
+    await prisma.taskCompletion.deleteMany({
+      where: {
+        taskId: task.id,
+        periodStart,
+      },
+    });
+  } else {
+    // Create or update the completion record
+    await prisma.taskCompletion.upsert({
+      where: {
+        taskId_periodStart: {
+          taskId: task.id,
+          periodStart,
+        },
+      },
+      create: {
+        taskId: task.id,
+        goalId: task.goalId,
+        periodStart,
+        pointsAwarded: task.points,
+      },
+      update: {},
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}

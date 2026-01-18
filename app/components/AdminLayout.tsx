@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 type NavItem = {
   href: string;
@@ -47,6 +48,15 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: "/admin/backfill",
+    label: "補登任務",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/rewards",
     label: "獎勵",
     icon: (
@@ -59,13 +69,75 @@ const navItems: NavItem[] = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar when route changes
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      {/* Mobile Header */}
+      <div className="md:hidden sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="開啟選單"
+        >
+          <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Game Life
+        </h1>
+        <div className="w-10" /> {/* Spacer for centering */}
+      </div>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-72 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 sticky top-0">
+        <aside
+          className={`
+            fixed md:sticky top-0 left-0 z-50 h-screen w-72 
+            bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+            transform transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          `}
+        >
           <div className="p-8">
+            {/* Mobile close button */}
+            <div className="md:hidden flex justify-end mb-4">
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="關閉選單"
+              >
+                <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
             <Link href="/" className="block mb-10">
               <h1 className="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 Game Life
@@ -108,7 +180,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8 sm:p-10 lg:p-12">
+        <main className="flex-1 p-4 sm:p-8 md:p-10 lg:p-12 min-w-0">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

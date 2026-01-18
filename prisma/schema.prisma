@@ -75,14 +75,25 @@ model TaskCompletion {
 }
 
 model Reward {
-  id              String     @id @default(cuid())
+  id              String        @id @default(cuid())
   goalId          String
-  goal            Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  goal            Goal          @relation(fields: [goalId], references: [id], onDelete: Cascade)
   type            RewardType
   title           String
   thresholdPoints Int?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  claims          RewardClaim[]
 
   @@index([goalId, type])
+}
+
+model RewardClaim {
+  id        String   @id @default(cuid())
+  rewardId  String
+  reward    Reward   @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  claimedAt DateTime @default(now())
+
+  @@unique([rewardId])
+  @@index([rewardId])
 }
