@@ -252,63 +252,63 @@ export default function RewardProgressBar({
               目標完成獎勵
             </h4>
             
-            {/* Mobile: horizontal scroll, Desktop: vertical stack */}
-            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible scrollbar-hide pb-1 lg:pb-0">
-              {goalRewards.map((reward) => (
-                <motion.button
-                  key={reward.id}
-                  onClick={() => reward.achieved && !reward.claimed && onClaimReward(reward.id, reward.title)}
-                  disabled={!reward.achieved || reward.claimed}
-                  className={`flex-shrink-0 flex items-center gap-3 p-3 rounded-xl border-2 transition-all min-w-[160px] lg:min-w-0 lg:w-full ${
-                    reward.claimed
-                      ? "bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border-emerald-500/40"
-                      : reward.achieved
-                      ? "bg-gradient-to-r from-purple-500/15 to-pink-500/15 border-purple-500/40 cursor-pointer"
-                      : "bg-slate-800/40 border-slate-700/50 opacity-60"
-                  }`}
-                  whileHover={reward.achieved && !reward.claimed ? { scale: 1.02 } : {}}
-                  whileTap={reward.achieved && !reward.claimed ? { scale: 0.98 } : {}}
-                >
-                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                    reward.claimed
-                      ? "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/30"
-                      : reward.achieved
-                      ? "bg-gradient-to-br from-purple-400 to-pink-500 shadow-lg shadow-purple-500/30 animate-pulse"
-                      : "bg-slate-700"
-                  }`}>
-                    {reward.claimed ? (
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : reward.achieved ? (
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M5 5a3 3 0 015-2.236A3 3 0 0114.83 6H16a2 2 0 110 4h-5V9a1 1 0 10-2 0v1H4a2 2 0 110-4h1.17C5.06 5.687 5 5.35 5 5zm4 1V5a1 1 0 10-1 1h1zm3 0a1 1 0 10-1-1v1h1z" />
-                        <path d="M9 11H3v5a2 2 0 002 2h4v-7zM11 18h4a2 2 0 002-2v-5h-6v7z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className={`text-sm font-semibold truncate ${
-                      reward.claimed ? "text-emerald-300" : reward.achieved ? "text-purple-300" : "text-gray-500"
-                    }`}>
-                      {reward.title}
-                    </div>
-                    <div className={`text-[10px] font-medium ${
-                      reward.claimed 
-                        ? "text-emerald-400" 
-                        : reward.achieved 
-                        ? "text-yellow-300" 
-                        : "text-gray-600"
-                    }`}>
-                      {reward.claimed ? "✓ 已領取" : reward.achieved ? "🎁 點擊領取" : "🔒 未解鎖"}
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
+            {/* Mobile: render goal rewards as compact tiles (like point rewards) without points/progress */}
+            <div className="relative">
+              <div className="flex gap-2 min-w-max lg:flex-col lg:min-w-0 overflow-x-auto lg:overflow-x-visible scrollbar-hide pb-1 lg:pb-0">
+                {goalRewards.map((reward) => {
+                  const isUnlocked = reward.achieved;
+                  const isClaimed = reward.claimed;
+
+                  return (
+                    <motion.button
+                      key={reward.id}
+                      onClick={() => isUnlocked && !isClaimed && onClaimReward(reward.id, reward.title)}
+                      disabled={!isUnlocked || isClaimed}
+                      className={`relative flex-shrink-0 w-24 sm:w-28 p-2.5 rounded-xl border-2 transition-all ${
+                        isClaimed
+                          ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/50"
+                          : isUnlocked
+                          ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 cursor-pointer"
+                          : "bg-slate-800/50 border-slate-600/50"
+                      }`}
+                      whileHover={isUnlocked && !isClaimed ? { scale: 1.05, y: -2 } : {}}
+                      whileTap={isUnlocked && !isClaimed ? { scale: 0.98 } : {}}
+                    >
+                      <div className={`mx-auto w-8 h-8 rounded-full flex items-center justify-center mb-1.5 ${
+                        isClaimed
+                          ? "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md shadow-emerald-500/30"
+                          : isUnlocked
+                          ? "bg-gradient-to-br from-purple-400 to-pink-500 shadow-md shadow-purple-500/30 animate-pulse"
+                          : "bg-slate-700"
+                      }`}>
+                        {isClaimed ? (
+                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : isUnlocked ? (
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        )}
+                      </div>
+
+                      <div className={`text-xs font-semibold text-center truncate mb-0.5 ${
+                        isClaimed ? "text-emerald-300" : isUnlocked ? "text-purple-300" : "text-gray-400"
+                      }`}>
+                        {reward.title}
+                      </div>
+
+                      {isUnlocked && !isClaimed && (
+                        <div className="text-[9px] text-yellow-200 text-center mt-1 font-medium">點擊領取</div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

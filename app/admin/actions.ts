@@ -100,7 +100,7 @@ export async function createTask(formData: FormData) {
     throw new Error("points must be >= 0");
   }
 
-  const taskType = type === "DAILY" ? TaskType.DAILY : TaskType.WEEKLY;
+  const taskType = type === "DAILY" ? TaskType.DAILY : type === "WEEKLY" ? TaskType.WEEKLY : TaskType.ONE_TIME;
 
   await prisma.task.create({
     data: {
@@ -153,7 +153,9 @@ export async function completeTask(formData: FormData) {
   const periodStart =
     task.type === TaskType.DAILY
       ? dayStartUtc(now)
-      : weeklyPeriodStartUtc({ now, weeklyStartAt: task.goal.weeklyStartAt });
+      : task.type === TaskType.WEEKLY
+      ? weeklyPeriodStartUtc({ now, weeklyStartAt: task.goal.weeklyStartAt })
+      : task.goal.startAt; // ONE_TIME uses goal startAt as periodStart
 
   await prisma.taskCompletion.upsert({
     where: {
@@ -210,7 +212,9 @@ export async function backfillTaskCompletion(formData: FormData) {
   const periodStart =
     task.type === TaskType.DAILY
       ? dayStartUtc(targetDate)
-      : weeklyPeriodStartUtc({ now: targetDate, weeklyStartAt: task.goal.weeklyStartAt });
+      : task.type === TaskType.WEEKLY
+      ? weeklyPeriodStartUtc({ now: targetDate, weeklyStartAt: task.goal.weeklyStartAt })
+      : task.goal.startAt; // ONE_TIME uses goal startAt as periodStart
 
   if (action === "uncomplete") {
     // Delete the completion record

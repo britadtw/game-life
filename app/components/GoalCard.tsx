@@ -8,7 +8,7 @@ import { claimReward } from "@/app/actions";
 type Task = {
   id: string;
   title: string;
-  type: "DAILY" | "WEEKLY";
+  type: "DAILY" | "WEEKLY" | "ONE_TIME";
   points: number;
   done: boolean;
 };
@@ -22,13 +22,14 @@ export type GoalSummary = {
   totalPoints: number;
   daily: { done: number; total: number };
   weekly: { done: number; total: number };
+  oneTime: { done: number; total: number };
   tasks: Task[];
   pointRewards: PointReward[];
   goalRewards: GoalReward[];
 };
 
 export default function GoalCard({ goal }: { goal: GoalSummary }) {
-  const [activeTab, setActiveTab] = useState<"daily" | "weekly">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "weekly" | "oneTime">("daily");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedReward, setSelectedReward] = useState<{ id: string; title: string } | null>(null);
 
@@ -43,7 +44,9 @@ export default function GoalCard({ goal }: { goal: GoalSummary }) {
   const progressDays = Math.max(0, Math.min(totalDays, totalDays - remainingDays));
 
   const filteredTasks = goal.tasks.filter((t) => 
-    t.type === (activeTab === "daily" ? "DAILY" : "WEEKLY")
+    activeTab === "daily" ? t.type === "DAILY" : 
+    activeTab === "weekly" ? t.type === "WEEKLY" :
+    t.type === "ONE_TIME"
   );
 
   const dailyProgress = goal.daily.total > 0 
@@ -51,6 +54,9 @@ export default function GoalCard({ goal }: { goal: GoalSummary }) {
     : 0;
   const weeklyProgress = goal.weekly.total > 0 
     ? Math.round((goal.weekly.done / goal.weekly.total) * 100) 
+    : 0;
+  const oneTimeProgress = goal.oneTime.total > 0 
+    ? Math.round((goal.oneTime.done / goal.oneTime.total) * 100) 
     : 0;
 
   const handleClaimReward = useCallback((rewardId: string, title: string) => {
@@ -206,6 +212,37 @@ export default function GoalCard({ goal }: { goal: GoalSummary }) {
                   <div 
                     className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 shadow-lg shadow-purple-500/50"
                     style={{ width: `${weeklyProgress}%` }}
+                  />
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("oneTime")}
+              className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 text-sm sm:text-base font-bold transition-all duration-300 relative ${
+                activeTab === "oneTime"
+                  ? "text-amber-300"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {activeTab === "oneTime" && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500 shadow-lg shadow-amber-500/50"></div>
+              )}
+              <div className="flex items-center justify-center gap-2">
+                <span>單次任務</span>
+                <span className={`text-xs sm:text-sm px-2 py-0.5 rounded-lg ${
+                  activeTab === "oneTime" 
+                    ? "bg-amber-500/20 text-amber-300" 
+                    : "bg-gray-700/50 text-gray-400"
+                }`}>
+                  {goal.oneTime.done}/{goal.oneTime.total}
+                </span>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500 shadow-lg shadow-amber-500/50"
+                    style={{ width: `${oneTimeProgress}%` }}
                   />
                 </div>
               </div>

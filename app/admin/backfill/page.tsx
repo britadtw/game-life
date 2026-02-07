@@ -50,6 +50,7 @@ export default async function BackfillPage({
   const completions: Set<string> = new Set();
   let dailyPeriodStart: Date | null = null;
   let weeklyPeriodStart: Date | null = null;
+  let goalStart: Date | null = null;
 
   if (selectedGoal) {
     dailyPeriodStart = dayStartUtc(selectedDate);
@@ -57,11 +58,12 @@ export default async function BackfillPage({
       now: selectedDate, 
       weeklyStartAt: selectedGoal.weeklyStartAt 
     });
+    goalStart = selectedGoal.startAt;
 
     const completionRecords = await prisma.taskCompletion.findMany({
       where: {
         goalId: selectedGoal.id,
-        periodStart: { in: [dailyPeriodStart, weeklyPeriodStart] },
+        periodStart: { in: [dailyPeriodStart, weeklyPeriodStart, goalStart] },
       },
       select: { taskId: true, periodStart: true },
     });
@@ -74,6 +76,8 @@ export default async function BackfillPage({
           completions.add(c.taskId);
         } else if (task.type === TaskType.WEEKLY && c.periodStart.getTime() === weeklyPeriodStart.getTime()) {
           completions.add(c.taskId);
+        } else if (task.type === TaskType.ONE_TIME && c.periodStart.getTime() === goalStart.getTime()) {
+          completions.add(c.taskId);
         }
       }
     }
@@ -81,6 +85,7 @@ export default async function BackfillPage({
 
   const dailyTasks = selectedGoal?.tasks.filter(t => t.type === TaskType.DAILY) ?? [];
   const weeklyTasks = selectedGoal?.tasks.filter(t => t.type === TaskType.WEEKLY) ?? [];
+  const oneTimeTasks = selectedGoal?.tasks.filter(t => t.type === TaskType.ONE_TIME) ?? [];
 
   return (
     <AdminLayout>
@@ -279,6 +284,84 @@ export default async function BackfillPage({
               ) : (
                 <div className="space-y-3">
                   {weeklyTasks.map((task) => {
+                    const isCompleted = completions.has(task.id);
+                    return (
+                      <div
+                        key={task.id}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          isCompleted
+                            ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
+                            : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              isCompleted 
+                                ? "bg-green-500 text-white" 
+                                : "bg-gray-200 dark:bg-gray-600 text-gray-400"
+                            }`}>
+                              {isCompleted ? (
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">{task.points} pts</span>
+                            </div>
+                          </div>
+                          <form action={backfillTaskCompletion}>
+                            <input type="hidden" name="taskId" value={task.id} />
+                            <input type="hidden" name="date" value={selectedDateStr} />
+                            <input type="hidden" name="action" value={isCompleted ? "uncomplete" : "complete"} />
+                            <button
+                              type="submit"
+                              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                isCompleted
+                                  ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50"
+                                  : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50"
+                              }`}
+                            >
+                              {isCompleted ? "取消完成" : "標記完成"}
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* One-Time Tasks */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">單次任務</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    目標期間僅能完成一次
+                  </p>
+                </div>
+              </div>
+
+              {oneTimeTasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                  <p>尚無單次任務</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {oneTimeTasks.map((task) => {
                     const isCompleted = completions.has(task.id);
                     return (
                       <div

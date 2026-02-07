@@ -2,15 +2,16 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { dayStartUtc, weeklyPeriodStartUtc } from "@/lib/period";
 import { RewardType, TaskType } from "@prisma/client";
-import GoalCard, { GoalSummary } from "@/app/components/GoalCard";
+import { GoalSummary } from "@/app/components/GoalCard";
 import { PointReward, GoalReward } from "@/app/components/RewardProgressBar";
+import UserGoalsClient from "./UserGoalsClient";
 
 export const dynamic = "force-dynamic";
 
 type Task = {
   id: string;
   title: string;
-  type: "DAILY" | "WEEKLY";
+  type: "DAILY" | "WEEKLY" | "ONE_TIME";
   points: number;
   done: boolean;
 };
@@ -35,11 +36,12 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
   const now = new Date();
   const todayStart = dayStartUtc(now);
   const weekStart = weeklyPeriodStartUtc({ now, weeklyStartAt: goal.weeklyStartAt });
+  const goalStart = goal.startAt;
 
   const completions = await prisma.taskCompletion.findMany({
     where: {
       goalId: goal.id,
-      periodStart: { in: [todayStart, weekStart] },
+      periodStart: { in: [todayStart, weekStart, goalStart] },
     },
     select: { taskId: true, periodStart: true },
   });
@@ -50,6 +52,9 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
   const doneWeek = new Set(
     completions.filter((c) => c.periodStart.getTime() === weekStart.getTime()).map((c) => c.taskId),
   );
+  const doneOneTime = new Set(
+    completions.filter((c) => c.periodStart.getTime() === goalStart.getTime()).map((c) => c.taskId),
+  );
 
   const totalPointsAgg = await prisma.taskCompletion.aggregate({
     where: { goalId: goal.id },
@@ -59,9 +64,11 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
 
   const dailyTasks = goal.tasks.filter((t) => t.type === TaskType.DAILY);
   const weeklyTasks = goal.tasks.filter((t) => t.type === TaskType.WEEKLY);
+  const oneTimeTasks = goal.tasks.filter((t) => t.type === TaskType.ONE_TIME);
 
   const dailyDoneCount = dailyTasks.filter((t) => doneToday.has(t.id)).length;
   const weeklyDoneCount = weeklyTasks.filter((t) => doneWeek.has(t.id)).length;
+  const oneTimeDoneCount = oneTimeTasks.filter((t) => doneOneTime.has(t.id)).length;
 
   // Separate rewards by type
   const pointRewards: PointReward[] = goal.rewards
@@ -84,11 +91,15 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
     }));
 
   const tasks: Task[] = goal.tasks.map((t) => {
-    const done = t.type === TaskType.DAILY ? doneToday.has(t.id) : doneWeek.has(t.id);
+    const done = t.type === TaskType.DAILY 
+      ? doneToday.has(t.id) 
+      : t.type === TaskType.WEEKLY
+      ? doneWeek.has(t.id)
+      : doneOneTime.has(t.id);
     return {
       id: t.id,
       title: t.title,
-      type: t.type,
+      type: t.type as "DAILY" | "WEEKLY" | "ONE_TIME",
       points: t.points,
       done,
     };
@@ -103,6 +114,7 @@ async function buildGoalSummary(goalId: string): Promise<GoalSummary> {
     totalPoints,
     daily: { done: dailyDoneCount, total: dailyTasks.length },
     weekly: { done: weeklyDoneCount, total: weeklyTasks.length },
+    oneTime: { done: oneTimeDoneCount, total: oneTimeTasks.length },
     tasks,
     pointRewards,
     goalRewards,
@@ -159,28 +171,7 @@ export default async function UserGoalsPage({ params }: { params: Promise<{ user
 
         {/* Main Content */}
         <main>
-          {summaries.length === 0 ? (
-            <div className="text-center py-32">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-cyan-500/20 blur-2xl"></div>
-                <div className="relative bg-slate-900/50 backdrop-blur-xl rounded-3xl border-2 border-cyan-500/30 p-16 neon-border">
-                  <svg className="w-24 h-24 mx-auto mb-6 text-cyan-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                  <h2 className="text-2xl font-bold text-cyan-300 mb-4">系統初始化中</h2>
-                  <p className="text-gray-400">
-                    尚無任務數據
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 sm:gap-10">
-              {summaries.map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))}
-            </div>
-          )}
+          <UserGoalsClient summaries={summaries} />
         </main>
       </div>
     </div>
