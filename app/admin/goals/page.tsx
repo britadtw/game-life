@@ -112,7 +112,7 @@ export default async function GoalsPage() {
                     required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
                   />
-                  <p className="text-xs text-red-500 mt-1">⚠️ 必須是每週起始日的 7 天倍數</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">結束日用來決定目標何時過期；每週任務仍會依每週起始日計算</p>
                 </div>
               </div>
 

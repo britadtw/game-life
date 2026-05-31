@@ -1,6 +1,10 @@
 name: Deploy to Test Server
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   DOCKER_IMAGE: game-life

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { dayStartUtc, isMultipleOf7DaysUtc, weeklyPeriodStartUtc } from "@/lib/period";
+import { dayStartUtc, weeklyPeriodStartUtc } from "@/lib/period";
 import { RewardType, TaskType } from "@prisma/client";
 
 function parseDateOnly(value: FormDataEntryValue | null): Date {
@@ -65,9 +65,6 @@ export async function createGoal(formData: FormData) {
   }
   if (weeklyStartAt.getTime() < startAt.getTime() || weeklyStartAt.getTime() > endAt.getTime()) {
     throw new Error("weeklyStartAt must be within goal start/end");
-  }
-  if (!isMultipleOf7DaysUtc({ start: weeklyStartAt, end: endAt })) {
-    throw new Error("endAt must be a multiple of 7 days from weeklyStartAt");
   }
 
   await prisma.goal.create({
