@@ -32,7 +32,7 @@ export default async function GoalsPage() {
           {/* Goals List */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">所有目標</h2>
-            <GoalsListClient goals={goals} />
+            <GoalsListClient goals={goals} people={people} />
           </div>
 
           {/* Create Form */}

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import AdminLayout from "../../components/AdminLayout";
-import { createTask } from "../actions";
+import { createTask, deleteTask, updateTask } from "../actions";
 import TasksPageClient from "./TasksPageClient";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,13 @@ export default async function TasksPage() {
           <p className="text-gray-600 dark:text-gray-400">建立和管理每日與每週任務</p>
         </div>
 
-        <TasksPageClient goals={goals} tasks={tasks} createTask={createTask} />
+        <TasksPageClient
+          goals={goals}
+          tasks={tasks}
+          createTask={createTask}
+          updateTask={updateTask}
+          deleteTask={deleteTask}
+        />
       </div>
     </AdminLayout>
   );

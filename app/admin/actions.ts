@@ -38,6 +38,14 @@ function parseIntField(value: FormDataEntryValue | null, field: string): number 
   return parsed;
 }
 
+function parseTaskType(value: FormDataEntryValue | null): TaskType {
+  const type = parseString(value, "type");
+  if (type === "DAILY") return TaskType.DAILY;
+  if (type === "WEEKLY") return TaskType.WEEKLY;
+  if (type === "ONE_TIME") return TaskType.ONE_TIME;
+  throw new Error("Invalid type");
+}
+
 export async function createPerson(formData: FormData) {
   const name = parseString(formData.get("name"), "name");
 
@@ -87,17 +95,56 @@ export async function createGoal(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateGoal(formData: FormData) {
+  const goalId = parseString(formData.get("goalId"), "goalId");
+  const title = parseString(formData.get("title"), "title");
+  const assigneeId = parseString(formData.get("assigneeId"), "assigneeId");
+  const startAt = parseDateOnly(formData.get("startAt"));
+  const endAt = parseDateOnly(formData.get("endAt"));
+  const weeklyStartAt = parseDateOnly(formData.get("weeklyStartAt"));
+
+  if (startAt.getTime() > endAt.getTime()) {
+    throw new Error("startAt must be <= endAt");
+  }
+  if (weeklyStartAt.getTime() < startAt.getTime() || weeklyStartAt.getTime() > endAt.getTime()) {
+    throw new Error("weeklyStartAt must be within goal start/end");
+  }
+
+  await prisma.goal.update({
+    where: { id: goalId },
+    data: {
+      title,
+      assigneeId,
+      startAt,
+      endAt,
+      weeklyStartAt,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function deleteGoal(formData: FormData) {
+  const goalId = parseString(formData.get("goalId"), "goalId");
+
+  await prisma.goal.delete({
+    where: { id: goalId },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
 export async function createTask(formData: FormData) {
   const goalId = parseString(formData.get("goalId"), "goalId");
   const title = parseString(formData.get("title"), "title");
-  const type = parseString(formData.get("type"), "type");
+  const taskType = parseTaskType(formData.get("type"));
   const points = parseIntField(formData.get("points"), "points");
 
   if (points < 0) {
     throw new Error("points must be >= 0");
   }
-
-  const taskType = type === "DAILY" ? TaskType.DAILY : type === "WEEKLY" ? TaskType.WEEKLY : TaskType.ONE_TIME;
 
   await prisma.task.create({
     data: {
@@ -108,6 +155,45 @@ export async function createTask(formData: FormData) {
     },
   });
 
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function updateTask(formData: FormData) {
+  const taskId = parseString(formData.get("taskId"), "taskId");
+  const goalId = parseString(formData.get("goalId"), "goalId");
+  const title = parseString(formData.get("title"), "title");
+  const taskType = parseTaskType(formData.get("type"));
+  const points = parseIntField(formData.get("points"), "points");
+
+  if (points < 0) {
+    throw new Error("points must be >= 0");
+  }
+
+  await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      goalId,
+      title,
+      type: taskType,
+      points,
+    },
+  });
+
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function deleteTask(formData: FormData) {
+  const taskId = parseString(formData.get("taskId"), "taskId");
+
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { isActive: false },
+  });
+
+  revalidatePath("/admin/tasks");
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -129,6 +215,55 @@ export async function createPointReward(formData: FormData) {
       thresholdPoints,
     },
   });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function updateReward(formData: FormData) {
+  const rewardId = parseString(formData.get("rewardId"), "rewardId");
+  const title = parseString(formData.get("title"), "title");
+  const type = parseString(formData.get("type"), "type");
+
+  if (type !== RewardType.POINT_THRESHOLD && type !== RewardType.GOAL_COMPLETE) {
+    throw new Error("Invalid reward type");
+  }
+
+  let thresholdPoints: number | null = null;
+  if (type === RewardType.POINT_THRESHOLD) {
+    thresholdPoints = parseIntField(formData.get("thresholdPoints"), "thresholdPoints");
+    if (thresholdPoints < 0) {
+      throw new Error("thresholdPoints must be >= 0");
+    }
+  }
+
+  await prisma.reward.update({
+    where: { id: rewardId },
+    data: {
+      title,
+      thresholdPoints,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function deleteReward(formData: FormData) {
+  const rewardId = parseString(formData.get("rewardId"), "rewardId");
+
+  const deleted = await prisma.reward.deleteMany({
+    where: {
+      id: rewardId,
+      claims: {
+        none: {},
+      },
+    },
+  });
+
+  if (deleted.count === 0) {
+    throw new Error("Reward cannot be deleted");
+  }
 
   revalidatePath("/admin");
   revalidatePath("/");

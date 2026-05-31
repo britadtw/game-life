@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import AdminLayout from "../../components/AdminLayout";
-import { createPointReward } from "../actions";
+import { createPointReward, deleteReward, updateReward } from "../actions";
 import RewardsPageClient from "./RewardsPageClient";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,13 @@ export default async function RewardsPage() {
           <p className="text-gray-600 dark:text-gray-400">建立和管理點數獎勵</p>
         </div>
 
-        <RewardsPageClient goals={goals} rewards={rewards} createPointReward={createPointReward} />
+        <RewardsPageClient
+          goals={goals}
+          rewards={rewards}
+          createPointReward={createPointReward}
+          updateReward={updateReward}
+          deleteReward={deleteReward}
+        />
       </div>
     </AdminLayout>
   );

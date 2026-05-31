@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { deleteGoal, updateGoal } from "../actions";
+
+function toDateInputValue(date: Date): string {
+  return new Date(date).toISOString().slice(0, 10);
+}
 
 type Goal = {
   id: string;
@@ -9,19 +14,27 @@ type Goal = {
   endAt: Date;
   weeklyStartAt: Date;
   completedAt: Date | null;
-  assignee: { name: string };
+  assigneeId: string;
+  assignee: { id: string; name: string };
   _count: {
     tasks: number;
     rewards: number;
   };
 };
 
-type Props = {
-  goals: Goal[];
+type Person = {
+  id: string;
+  name: string;
 };
 
-export default function GoalsListClient({ goals }: Props) {
+type Props = {
+  goals: Goal[];
+  people: Person[];
+};
+
+export default function GoalsListClient({ goals, people }: Props) {
   const [showExpired, setShowExpired] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const now = new Date();
   
   // Sort by startAt descending (newer first)
@@ -69,6 +82,7 @@ export default function GoalsListClient({ goals }: Props) {
         <div className="space-y-4">
           {filteredGoals.map((goal) => {
             const isExpired = new Date(goal.endAt) < now;
+            const isEditing = editingGoalId === goal.id;
             return (
               <div
                 key={goal.id}
@@ -93,7 +107,30 @@ export default function GoalsListClient({ goals }: Props) {
                       {goal.assignee.name}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingGoalId(isEditing ? null : goal.id)}
+                      className="px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                    >
+                      {isEditing ? "取消編輯" : "編輯"}
+                    </button>
+                    <form
+                      action={deleteGoal}
+                      onSubmit={(event) => {
+                        if (!confirm("確定要刪除此目標？將會一併刪除任務與獎勵。")) {
+                          event.preventDefault();
+                        }
+                      }}
+                    >
+                      <input type="hidden" name="goalId" value={goal.id} />
+                      <button
+                        type="submit"
+                        className="px-3 py-1 text-xs font-semibold rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                      >
+                        刪除
+                      </button>
+                    </form>
                     {isExpired && !goal.completedAt && (
                       <span className="px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-full">
                         已過期
@@ -129,6 +166,87 @@ export default function GoalsListClient({ goals }: Props) {
                   <div>結束: {new Date(goal.endAt).toLocaleDateString("zh-TW")}</div>
                   <div>每週起始: {new Date(goal.weeklyStartAt).toLocaleDateString("zh-TW")}</div>
                 </div>
+
+                {isEditing && (
+                  <form action={updateGoal} className="mt-4 p-4 rounded-xl bg-white/70 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 space-y-3">
+                    <input type="hidden" name="goalId" value={goal.id} />
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">目標名稱</label>
+                      <input
+                        name="title"
+                        defaultValue={goal.title}
+                        required
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">指派給</label>
+                      <select
+                        name="assigneeId"
+                        defaultValue={goal.assigneeId}
+                        required
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                      >
+                        {people.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">開始日期</label>
+                        <input
+                          name="startAt"
+                          type="date"
+                          defaultValue={toDateInputValue(goal.startAt)}
+                          required
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">每週起始日</label>
+                        <input
+                          name="weeklyStartAt"
+                          type="date"
+                          defaultValue={toDateInputValue(goal.weeklyStartAt)}
+                          required
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">結束日期</label>
+                        <input
+                          name="endAt"
+                          type="date"
+                          defaultValue={toDateInputValue(goal.endAt)}
+                          required
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingGoalId(null)}
+                        className="px-3 py-2 text-xs font-semibold rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        取消
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                      >
+                        儲存
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             );
           })}
